@@ -1,0 +1,60 @@
+[project]
+name = "playbookapi"
+version = "0.1.0"
+description = "PlayBookApi — sports prediction tips engine. Consumes sports-odds-api, generates picks with LLM-explained reasoning."
+requires-python = ">=3.13"
+dependencies = [
+    # Core
+    "django>=6.0,<6.1",
+    "djangorestframework>=3.16",
+    "dj-database-url>=3.1",
+    "psycopg[binary]>=3.3",
+    "django-environ>=0.13",
+    # Auth (dlujo pattern — Cuba-friendly, no Firebase SDK)
+    "djangorestframework-simplejwt>=5.3",
+    "djangorestframework-api-key>=3.0",
+    "google-auth>=2.29",
+    "django-rest-passwordreset>=1.4",
+    "pyjwt>=2.9",
+    # Realtime + async
+    "channels>=4.2",
+    "channels-redis>=4.2",
+    "daphne>=4.1",
+    "celery>=5.6",
+    "django-celery-beat>=2.7",
+    "django-celery-results>=2.6",
+    "django-redis>=6.0",
+    "redis>=7.2",
+    # API + admin
+    "drf-spectacular[sidecar]>=0.29",
+    "django-unfold>=0.91",
+    "django-import-export>=4.4",
+    "django-icons>=26.1",
+    "django-filter>=25.0",
+    # Util
+    "django-cors-headers>=4.9",
+    "whitenoise>=6.11",
+    "httpx[http2]>=0.27",
+    "requests>=2.32",
+    "pillow>=12.1",
+    "phonenumbers>=8.13",
+    "django-phonenumber-field>=8.0",
+    # LLM (OpenAI-compatible client; works against OpenAI / DeepSeek / Anthropic / local)
+    "openai>=1.50",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0",
+    "pytest-django>=4.12",
+    "pytest-asyncio>=0.24",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "PlayBookApi.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers"
+pythonpath = ["."]

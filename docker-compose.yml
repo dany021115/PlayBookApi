@@ -1,0 +1,111 @@
+services:
+  playbook-db:
+    image: postgres:16-alpine
+    container_name: playbook-db
+    volumes:
+      - playbook_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "55433:5432"
+    environment:
+      POSTGRES_DB: playbook
+      POSTGRES_USER: playbook
+      POSTGRES_PASSWORD: playbook
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U playbook"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - playbook-net
+
+  playbook-redis:
+    image: redis:7.4-alpine
+    container_name: playbook-redis
+    ports:
+      - "16381:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - playbook-net
+
+  playbook-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: playbook-api
+    ports:
+      - "18002:8000"
+    depends_on:
+      playbook-db:
+        condition: service_healthy
+      playbook-redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://playbook:playbook@playbook-db:5432/playbook
+      CELERY_BROKER_URL: redis://playbook-redis:6379/0
+      REDIS_URL: redis://playbook-redis:6379/1
+      SPORTS_ODDS_API_URL: http://sports-api:8000
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health/ready/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - playbook-net
+      - sports-odds-api_sports-net
+
+  playbook-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: playbook-worker
+    command: uv run celery -A PlayBookApi worker -l info -c 2
+    depends_on:
+      playbook-db:
+        condition: service_healthy
+      playbook-redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://playbook:playbook@playbook-db:5432/playbook
+      CELERY_BROKER_URL: redis://playbook-redis:6379/0
+      REDIS_URL: redis://playbook-redis:6379/1
+      SPORTS_ODDS_API_URL: http://sports-api:8000
+    networks:
+      - playbook-net
+      - sports-odds-api_sports-net
+
+  playbook-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: playbook-beat
+    command: uv run celery -A PlayBookApi beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    depends_on:
+      playbook-db:
+        condition: service_healthy
+      playbook-redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://playbook:playbook@playbook-db:5432/playbook
+      CELERY_BROKER_URL: redis://playbook-redis:6379/0
+      REDIS_URL: redis://playbook-redis:6379/1
+    networks:
+      - playbook-net
+
+volumes:
+  playbook_postgres_data:
+
+networks:
+  playbook-net:
+  sports-odds-api_sports-net:
+    external: true
